@@ -4,6 +4,7 @@ namespace App\Helpers;
 
 use App\Models\RestaurantSetting;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class RestaurantHelper
 {
@@ -62,26 +63,30 @@ class RestaurantHelper
      */
     public static function getCurrentDayStart(): Carbon
     {
-        $openingTime = self::getOpeningTime();
-        $closingTime = self::getClosingTime();
+        $cacheKey = 'restaurant:day:start:' . Carbon::now()->format('Y-m-d-H');
 
-        $openingHour = (int) substr($openingTime, 0, 2);
-        $closingHour = (int) substr($closingTime, 0, 2);
+        return Cache::remember($cacheKey, now()->addMinutes(30), function () {
+            $openingTime = self::getOpeningTime();
+            $closingTime = self::getClosingTime();
 
-        $now = Carbon::now();
-        $currentHour = $now->hour;
+            $openingHour = (int) substr($openingTime, 0, 2);
+            $closingHour = (int) substr($closingTime, 0, 2);
 
-        // If closing time is before opening time (overnight hours)
-        if ($closingHour < $openingHour) {
-            // If current time is before closing (e.g., 2 AM when closing is 4 AM)
-            // The day started yesterday at opening time
-            if ($currentHour < $closingHour) {
-                return Carbon::yesterday()->setTimeFromTimeString($openingTime);
+            $now = Carbon::now();
+            $currentHour = $now->hour;
+
+            // If closing time is before opening time (overnight hours)
+            if ($closingHour < $openingHour) {
+                // If current time is before closing (e.g., 2 AM when closing is 4 AM)
+                // The day started yesterday at opening time
+                if ($currentHour < $closingHour) {
+                    return Carbon::yesterday()->setTimeFromTimeString($openingTime);
+                }
             }
-        }
 
-        // Otherwise, day starts today at opening time
-        return Carbon::today()->setTimeFromTimeString($openingTime);
+            // Otherwise, day starts today at opening time
+            return Carbon::today()->setTimeFromTimeString($openingTime);
+        });
     }
 
     /**
@@ -91,28 +96,32 @@ class RestaurantHelper
      */
     public static function getCurrentDayEnd(): Carbon
     {
-        $openingTime = self::getOpeningTime();
-        $closingTime = self::getClosingTime();
+        $cacheKey = 'restaurant:day:end:' . Carbon::now()->format('Y-m-d-H');
 
-        $openingHour = (int) substr($openingTime, 0, 2);
-        $closingHour = (int) substr($closingTime, 0, 2);
+        return Cache::remember($cacheKey, now()->addMinutes(30), function () {
+            $openingTime = self::getOpeningTime();
+            $closingTime = self::getClosingTime();
 
-        $now = Carbon::now();
-        $currentHour = $now->hour;
+            $openingHour = (int) substr($openingTime, 0, 2);
+            $closingHour = (int) substr($closingTime, 0, 2);
 
-        // If closing time is before opening time (overnight hours)
-        if ($closingHour < $openingHour) {
-            // If current time is before closing (e.g., 2 AM when closing is 4 AM)
-            // The day ends today at closing time
-            if ($currentHour < $closingHour) {
-                return Carbon::today()->setTimeFromTimeString($closingTime);
+            $now = Carbon::now();
+            $currentHour = $now->hour;
+
+            // If closing time is before opening time (overnight hours)
+            if ($closingHour < $openingHour) {
+                // If current time is before closing (e.g., 2 AM when closing is 4 AM)
+                // The day ends today at closing time
+                if ($currentHour < $closingHour) {
+                    return Carbon::today()->setTimeFromTimeString($closingTime);
+                }
+                // Otherwise, day ends tomorrow at closing time
+                return Carbon::tomorrow()->setTimeFromTimeString($closingTime);
             }
-            // Otherwise, day ends tomorrow at closing time
-            return Carbon::tomorrow()->setTimeFromTimeString($closingTime);
-        }
 
-        // Normal hours: day ends today at closing time
-        return Carbon::today()->setTimeFromTimeString($closingTime);
+            // Normal hours: day ends today at closing time
+            return Carbon::today()->setTimeFromTimeString($closingTime);
+        });
     }
 
     /**

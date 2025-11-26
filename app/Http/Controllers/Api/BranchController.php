@@ -5,21 +5,57 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class BranchController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Clear all branch-related caches
+     */
+    protected function clearBranchCache(?int $branchId = null)
     {
-        $query = Branch::query()->with(['riders', 'orders']);
+        // Clear list caches
+        Cache::forget('branches:list:active:all:page:1:per_page:20');
+        Cache::forget('branches:list:active:1:page:1:per_page:20');
+        Cache::forget('branches:list:active:0:page:1:per_page:20');
 
-        // Filter by active status
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
+        // Clear specific branch cache if provided
+        if ($branchId) {
+            Cache::forget("branch:{$branchId}:details");
         }
 
-        return $query->orderBy('name')->get();
+        // Clear all paginated caches (this is a simple approach, could be improved with cache tags)
+        for ($page = 1; $page <= 10; $page++) {
+            Cache::forget("branches:list:active:all:page:{$page}:per_page:20");
+            Cache::forget("branches:list:active:1:page:{$page}:per_page:20");
+            Cache::forget("branches:list:active:0:page:{$page}:per_page:20");
+        }
+    }
+
+    public function index(Request $request)
+    {
+        $isActive = $request->has('is_active') ? $request->boolean('is_active') : 'all';
+        $page = $request->get('page', 1);
+        $perPage = $request->get('per_page', 20);
+
+        $cacheKey = "branches:list:active:{$isActive}:page:{$page}:per_page:{$perPage}";
+
+        return Cache::remember($cacheKey, now()->addHours(24), function () use ($request, $isActive, $perPage) {
+            $query = Branch::query()
+                ->withCount(['riders', 'orders'])
+                ->with(['riders' => function ($query) {
+                    $query->select('id', 'name', 'branch_id', 'status')->limit(5);
+                }]);
+
+            // Filter by active status
+            if ($isActive !== 'all') {
+                $query->where('is_active', $isActive);
+            }
+
+            return $query->orderBy('name')->paginate($perPage);
+        });
     }
 
     public function store(Request $request)
@@ -47,6 +83,9 @@ class BranchController extends Controller
             );
         }
 
+        // Clear branch caches
+        $this->clearBranchCache();
+
         return response()->json([
             'data' => $branch->fresh()
         ], 201);
@@ -54,10 +93,14 @@ class BranchController extends Controller
 
     public function show(Branch $branch)
     {
-        $branch->load(['riders', 'orders', 'settings']);
+        $cacheKey = "branch:{$branch->id}:details";
+
+        $branchData = Cache::remember($cacheKey, now()->addHour(), function () use ($branch) {
+            return $branch->load(['riders', 'orders', 'settings']);
+        });
 
         return response()->json([
-            'data' => $branch
+            'data' => $branchData
         ]);
     }
 
@@ -85,6 +128,9 @@ class BranchController extends Controller
             );
         }
 
+        // Clear branch caches
+        $this->clearBranchCache($branch->id);
+
         return response()->json([
             'data' => $branch->fresh()
         ]);
@@ -104,7 +150,11 @@ class BranchController extends Controller
             ], 422);
         }
 
+        $branchId = $branch->id;
         $branch->delete();
+
+        // Clear branch caches
+        $this->clearBranchCache($branchId);
 
         return response()->json([
             'message' => 'Branch deleted successfully'
@@ -115,6 +165,9 @@ class BranchController extends Controller
     {
         $branch->update(['is_active' => true]);
 
+        // Clear branch caches
+        $this->clearBranchCache($branch->id);
+
         return response()->json([
             'data' => $branch->fresh()
         ]);
@@ -123,6 +176,9 @@ class BranchController extends Controller
     public function deactivate(Branch $branch)
     {
         $branch->update(['is_active' => false]);
+
+        // Clear branch caches
+        $this->clearBranchCache($branch->id);
 
         return response()->json([
             'data' => $branch->fresh()

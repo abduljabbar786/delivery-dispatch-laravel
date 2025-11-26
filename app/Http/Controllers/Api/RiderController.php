@@ -188,6 +188,9 @@ class RiderController extends Controller
 
             DB::commit();
 
+            // Clear rider positions cache to reflect latest updates
+            Cache::forget('riders:positions:latest');
+
             // Throttle broadcasts - only broadcast once per second per rider
             $cacheKey = "rider_location_broadcast_{$rider->id}";
             $canBroadcast = ! Cache::has($cacheKey);

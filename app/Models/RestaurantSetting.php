@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Cache;
 
 class RestaurantSetting extends Model
 {
@@ -29,22 +30,26 @@ class RestaurantSetting extends Model
      */
     public static function get(string $key, $default = null, ?int $branchId = null)
     {
-        $query = static::where('key', $key);
+        $cacheKey = "restaurant_setting:{$key}:" . ($branchId ?? 'global');
 
-        if ($branchId) {
-            // Try to get branch-specific setting first
-            $setting = $query->where('branch_id', $branchId)->first();
+        return Cache::remember($cacheKey, now()->addHours(12), function () use ($key, $branchId, $default) {
+            $query = static::where('key', $key);
 
-            // If not found, fallback to global setting
-            if (!$setting) {
-                $setting = static::where('key', $key)->whereNull('branch_id')->first();
+            if ($branchId) {
+                // Try to get branch-specific setting first
+                $setting = $query->where('branch_id', $branchId)->first();
+
+                // If not found, fallback to global setting
+                if (!$setting) {
+                    $setting = static::where('key', $key)->whereNull('branch_id')->first();
+                }
+            } else {
+                // Get global setting
+                $setting = $query->whereNull('branch_id')->first();
             }
-        } else {
-            // Get global setting
-            $setting = $query->whereNull('branch_id')->first();
-        }
 
-        return $setting ? $setting->value : $default;
+            return $setting ? $setting->value : $default;
+        });
     }
 
     /**
@@ -58,7 +63,7 @@ class RestaurantSetting extends Model
      */
     public static function set(string $key, $value, ?string $description = null, ?int $branchId = null)
     {
-        return static::updateOrCreate(
+        $setting = static::updateOrCreate(
             [
                 'key' => $key,
                 'branch_id' => $branchId,
@@ -68,5 +73,16 @@ class RestaurantSetting extends Model
                 'description' => $description,
             ]
         );
+
+        // Clear cache for this setting
+        $cacheKey = "restaurant_setting:{$key}:" . ($branchId ?? 'global');
+        Cache::forget($cacheKey);
+
+        // Also clear global cache if setting a branch-specific value
+        if ($branchId) {
+            Cache::forget("restaurant_setting:{$key}:global");
+        }
+
+        return $setting;
     }
 }
