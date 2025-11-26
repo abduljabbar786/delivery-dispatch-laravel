@@ -39,10 +39,17 @@ class RiderController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20|unique:riders,phone',
             'branch_id' => 'required|exists:branches,id',
+            'latest_lat' => 'nullable|numeric|between:-90,90',
+            'latest_lng' => 'nullable|numeric|between:-180,180',
         ]);
 
         // Set default status to IDLE for new riders
         $validated['status'] = 'IDLE';
+
+        // If location is provided, set the spatial point for latest_pos
+        if (isset($validated['latest_lat']) && isset($validated['latest_lng'])) {
+            $validated['latest_pos'] = DB::raw("ST_GeomFromText('POINT({$validated['latest_lng']} {$validated['latest_lat']})', 4326)");
+        }
 
         $rider = Rider::query()->create($validated);
 
