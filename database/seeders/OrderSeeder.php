@@ -174,6 +174,7 @@ class OrderSeeder extends Seeder
                 'status' => 'OUT_FOR_DELIVERY',
                 'assigned_rider_id' => $riders[9]->id ?? null,
             ],
+            // Additional UNASSIGNED Orders
             [
                 'code' => 'ORD-016',
                 'customer_name' => 'Paul Hernandez',
@@ -181,10 +182,8 @@ class OrderSeeder extends Seeder
                 'address' => 'Thokar Niaz Baig, Lahore',
                 'lat' => 31.4295,
                 'lng' => 74.3835,
-                'status' => 'OUT_FOR_DELIVERY',
-                'assigned_rider_id' => $riders[0]->id ?? null,
+                'status' => 'UNASSIGNED',
             ],
-            // DELIVERED Orders
             [
                 'code' => 'ORD-017',
                 'customer_name' => 'Quinn Perez',
@@ -192,8 +191,7 @@ class OrderSeeder extends Seeder
                 'address' => 'Barkat Market, Garden Town, Lahore',
                 'lat' => 31.4935,
                 'lng' => 74.3210,
-                'status' => 'DELIVERED',
-                'assigned_rider_id' => $riders[1]->id ?? null,
+                'status' => 'UNASSIGNED',
             ],
             [
                 'code' => 'ORD-018',
@@ -202,10 +200,8 @@ class OrderSeeder extends Seeder
                 'address' => 'Valencia Town, Lahore',
                 'lat' => 31.4135,
                 'lng' => 74.2655,
-                'status' => 'DELIVERED',
-                'assigned_rider_id' => $riders[2]->id ?? null,
+                'status' => 'UNASSIGNED',
             ],
-            // FAILED Orders
             [
                 'code' => 'ORD-019',
                 'customer_name' => 'Sam Phillips',
@@ -213,9 +209,7 @@ class OrderSeeder extends Seeder
                 'address' => 'Bahria Town, Lahore',
                 'lat' => 31.3420,
                 'lng' => 74.2155,
-                'status' => 'FAILED',
-                'assigned_rider_id' => $riders[3]->id ?? null,
-                'notes' => 'Customer not available',
+                'status' => 'UNASSIGNED',
             ],
             [
                 'code' => 'ORD-020',
@@ -224,9 +218,7 @@ class OrderSeeder extends Seeder
                 'address' => 'Wapda Town, Lahore',
                 'lat' => 31.4205,
                 'lng' => 74.2845,
-                'status' => 'FAILED',
-                'assigned_rider_id' => $riders[4]->id ?? null,
-                'notes' => 'Wrong address',
+                'status' => 'UNASSIGNED',
             ],
         ];
 
