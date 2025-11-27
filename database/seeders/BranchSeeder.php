@@ -13,10 +13,10 @@ class BranchSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create Branch 1 - Main Branch (using env pickup location)
+        // Create Branch 1 - Shadbagh branch (using env pickup location)
         $branch1 = Branch::create([
-            'name' => 'Main Branch',
-            'code' => 'MAIN',
+            'name' => 'Shadbagh branch',
+            'code' => 'SHADBAGH',
             'address' => '123 Main Street, New York, NY',
             'phone' => '+1-555-0101',
             'lat' => env('PICKUP_LOCATION_LAT', 40.7489),
@@ -32,10 +32,10 @@ class BranchSeeder extends Seeder
             ["POINT({$branch1->lng} {$branch1->lat})", $branch1->id]
         );
 
-        // Create Branch 2 - Downtown Branch
+        // Create Branch 2 - Bismillah branch
         $branch2 = Branch::create([
-            'name' => 'Downtown Branch',
-            'code' => 'DOWNTOWN',
+            'name' => 'Bismillah branch',
+            'code' => 'BISMILLAH',
             'address' => '456 Downtown Avenue, New York, NY',
             'phone' => '+1-555-0102',
             'lat' => 40.7589,
@@ -51,16 +51,16 @@ class BranchSeeder extends Seeder
             ["POINT({$branch2->lng} {$branch2->lat})", $branch2->id]
         );
 
-        // Update all existing orders to belong to Main Branch
+        // Update all existing orders to belong to Shadbagh branch
         DB::table('orders')->update(['branch_id' => $branch1->id]);
 
-        // Update all existing riders to belong to Main Branch
+        // Update all existing riders to belong to Shadbagh branch
         DB::table('riders')->update(['branch_id' => $branch1->id]);
 
-        // Update all existing users to belong to Main Branch (optional)
+        // Update all existing users to belong to Shadbagh branch (optional)
         DB::table('users')->where('role', 'supervisor')->update(['branch_id' => $branch1->id]);
 
         $this->command->info('Created 2 branches successfully!');
-        $this->command->info('All existing orders and riders assigned to Main Branch.');
+        $this->command->info('All existing orders and riders assigned to Shadbagh branch.');
     }
 }
