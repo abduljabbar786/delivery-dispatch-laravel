@@ -24,9 +24,6 @@ class OrderController extends Controller
             $query->where('branch_id', $request->branch_id);
         }
 
-        // Filter by current restaurant day (4 PM to 4 AM)
-        $query = RestaurantHelper::filterCurrentDayOrders($query);
-
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
