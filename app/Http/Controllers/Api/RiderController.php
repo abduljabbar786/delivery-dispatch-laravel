@@ -7,7 +7,6 @@ use App\Events\RiderLocationUpdated;
 use App\Helpers\GeolocationHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\OrderEvent;
 use App\Models\Rider;
 use App\Models\RiderLocation;
 use Illuminate\Http\Request;
@@ -245,21 +244,7 @@ class RiderController extends Controller
 
         // If rider is more than 100 meters away, update the status to OUT_FOR_DELIVERY
         if ($distance > 100) {
-            $oldStatus = $order->status;
-
             $order->update(['status' => 'OUT_FOR_DELIVERY']);
-
-            // Create event
-            OrderEvent::query()->create([
-                'order_id' => $order->id,
-                'type' => 'status_changed',
-                'meta' => [
-                    'old_status' => $oldStatus,
-                    'new_status' => 'OUT_FOR_DELIVERY',
-                    'auto_updated' => true,
-                    'distance_from_pickup' => round($distance, 2),
-                ],
-            ]);
 
             // Broadcast event
             broadcast(new OrderStatusChanged($order->fresh()))->toOthers();

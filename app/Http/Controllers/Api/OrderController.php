@@ -3,10 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Events\OrderStatusChanged;
-use App\Helpers\RestaurantHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\OrderEvent;
 use App\Models\Rider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,13 +49,6 @@ class OrderController extends Controller
 
         $order = Order::query()->create($validated);
 
-        // Create an initial event
-        OrderEvent::query()->create([
-            'order_id' => $order->id,
-            'type' => 'created',
-            'meta' => ['status' => 'UNASSIGNED'],
-        ]);
-
         return response()->json($order->fresh(), 201);
     }
 
@@ -100,18 +91,6 @@ class OrderController extends Controller
             // Update rider status
             $rider->update(['status' => 'BUSY']);
 
-            // Create event
-            OrderEvent::query()->create([
-                'order_id' => $order->id,
-                'type' => 'assigned',
-                'meta' => [
-                    'rider_id' => $rider->id,
-                    'rider_name' => $rider->name,
-                    'old_status' => 'UNASSIGNED',
-                    'new_status' => 'ASSIGNED',
-                ],
-            ]);
-
             // Broadcast event
             broadcast(new OrderStatusChanged($order->fresh()))->toOthers();
 
@@ -150,8 +129,6 @@ class OrderController extends Controller
                 ], 422);
             }
 
-            $oldStatus = $order->status;
-
             // Reassign order
             $order->update([
                 'status' => 'ASSIGNED',
@@ -173,20 +150,6 @@ class OrderController extends Controller
             // Update new rider status
             $newRider->update(['status' => 'BUSY']);
 
-            // Create event
-            OrderEvent::query()->create([
-                'order_id' => $order->id,
-                'type' => 'reassigned',
-                'meta' => [
-                    'old_rider_id' => $oldRider?->id,
-                    'old_rider_name' => $oldRider?->name,
-                    'new_rider_id' => $newRider->id,
-                    'new_rider_name' => $newRider->name,
-                    'old_status' => $oldStatus,
-                    'new_status' => 'ASSIGNED',
-                ],
-            ]);
-
             // Broadcast event
             broadcast(new OrderStatusChanged($order->fresh()))->toOthers();
 
@@ -205,7 +168,6 @@ class OrderController extends Controller
         ]);
 
         return DB::transaction(function () use ($order, $validated) {
-            $oldStatus = $order->status;
             $newStatus = $validated['status'];
 
             // Update order status
@@ -233,22 +195,6 @@ class OrderController extends Controller
                     }
                 }
             }
-
-            // Create event
-            $meta = [
-                'old_status' => $oldStatus,
-                'new_status' => $newStatus,
-            ];
-
-            if (isset($validated['reason'])) {
-                $meta['reason'] = $validated['reason'];
-            }
-
-            OrderEvent::query()->create([
-                'order_id' => $order->id,
-                'type' => 'status_changed',
-                'meta' => $meta,
-            ]);
 
             // Broadcast event
             broadcast(new OrderStatusChanged($order->fresh()))->toOthers();

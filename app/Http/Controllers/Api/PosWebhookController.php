@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Events\OrderStatusChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\OrderEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -86,17 +85,6 @@ class PosWebhookController extends Controller
 
             // Create the order
             $order = Order::query()->create($orderData);
-
-            // Create an initial event
-            OrderEvent::query()->create([
-                'order_id' => $order->id,
-                'type' => 'created',
-                'meta' => [
-                    'status' => 'UNASSIGNED',
-                    'source' => 'pos_webhook',
-                    'pos_order_id' => $validated['pos_order_id'],
-                ],
-            ]);
 
             // Broadcast the new order
             broadcast(new OrderStatusChanged($order->fresh()))->toOthers();

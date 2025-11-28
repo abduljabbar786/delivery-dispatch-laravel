@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Order;
-use App\Models\OrderEvent;
 use App\Models\Rider;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -70,18 +69,6 @@ test('full order lifecycle from ASSIGNED to DELIVERED sets rider to IDLE', funct
 
     expect($order->fresh()->status)->toBe('DELIVERED')
         ->and($rider->fresh()->status)->toBe('IDLE');
-
-    // Check events were created
-    $this->assertDatabaseHas('order_events', [
-        'order_id' => $order->id,
-        'type' => 'assigned',
-    ]);
-
-    $events = OrderEvent::query()->where('order_id', $order->id)
-        ->where('type', 'status_changed')
-        ->count();
-
-    expect($events)->toBeGreaterThanOrEqual(3); // PICKED_UP, OUT_FOR_DELIVERY, DELIVERED
 });
 
 test('order status FAILED also sets rider to IDLE', function () {

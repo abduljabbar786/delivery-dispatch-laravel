@@ -189,7 +189,6 @@ delivery-dispatch-mvp/
 │   └── Models/
 │       ├── Order.php                     ✅ Relationships
 │       ├── Rider.php                     ✅ currentOrder()
-│       ├── OrderEvent.php                ✅ Audit trail
 │       └── RiderLocation.php             ✅ History
 ├── database/
 │   ├── migrations/                       ✅ 4 tables + spatial

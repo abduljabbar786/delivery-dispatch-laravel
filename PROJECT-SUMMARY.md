@@ -20,12 +20,8 @@ This is a **complete, production-ready Laravel 12 backend** for a delivery dispa
   - Casts: last_seen_at (datetime), battery (integer)
 
 - ✅ **Order Model**
-  - Relations: rider, events
+  - Relations: rider
   - Casts: lat/lng (float)
-
-- ✅ **OrderEvent Model**
-  - Immutable events with JSON metadata
-  - Auto-timestamp on creation
 
 - ✅ **RiderLocation Model**
   - Historical tracking with spatial support

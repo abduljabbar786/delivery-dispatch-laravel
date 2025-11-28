@@ -38,11 +38,6 @@ class Order extends Model
         return $this->belongsTo(Rider::class, 'assigned_rider_id');
     }
 
-    public function events(): HasMany
-    {
-        return $this->hasMany(OrderEvent::class);
-    }
-
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);

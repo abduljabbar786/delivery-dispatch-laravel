@@ -11,29 +11,6 @@ use Illuminate\Validation\Rule;
 
 class BranchController extends Controller
 {
-    /**
-     * Clear all branch-related caches
-     */
-    protected function clearBranchCache(?int $branchId = null)
-    {
-        // Clear list caches
-        Cache::forget('branches:list:active:all:page:1:per_page:20');
-        Cache::forget('branches:list:active:1:page:1:per_page:20');
-        Cache::forget('branches:list:active:0:page:1:per_page:20');
-
-        // Clear specific branch cache if provided
-        if ($branchId) {
-            Cache::forget("branch:{$branchId}:details");
-        }
-
-        // Clear all paginated caches (this is a simple approach, could be improved with cache tags)
-        for ($page = 1; $page <= 10; $page++) {
-            Cache::forget("branches:list:active:all:page:{$page}:per_page:20");
-            Cache::forget("branches:list:active:1:page:{$page}:per_page:20");
-            Cache::forget("branches:list:active:0:page:{$page}:per_page:20");
-        }
-    }
-
     public function index(Request $request)
     {
         $isActive = $request->has('is_active') ? $request->boolean('is_active') : 'all';
@@ -73,7 +50,7 @@ class BranchController extends Controller
         ]);
 
         // Create the branch
-        $branch = Branch::create($validated);
+        $branch = Branch::query()->create($validated);
 
         // Update spatial column if lat/lng provided
         if (isset($validated['lat']) && isset($validated['lng'])) {
@@ -183,5 +160,28 @@ class BranchController extends Controller
         return response()->json([
             'data' => $branch->fresh()
         ]);
+    }
+
+    /**
+     * Clear all branch-related caches
+     */
+    protected function clearBranchCache(?int $branchId = null)
+    {
+        // Clear list caches
+        Cache::forget('branches:list:active:all:page:1:per_page:20');
+        Cache::forget('branches:list:active:1:page:1:per_page:20');
+        Cache::forget('branches:list:active:0:page:1:per_page:20');
+
+        // Clear specific branch cache if provided
+        if ($branchId) {
+            Cache::forget("branch:{$branchId}:details");
+        }
+
+        // Clear all paginated caches (this is a simple approach, could be improved with cache tags)
+        for ($page = 1; $page <= 10; $page++) {
+            Cache::forget("branches:list:active:all:page:{$page}:per_page:20");
+            Cache::forget("branches:list:active:1:page:{$page}:per_page:20");
+            Cache::forget("branches:list:active:0:page:{$page}:per_page:20");
+        }
     }
 }
