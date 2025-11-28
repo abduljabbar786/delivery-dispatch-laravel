@@ -22,11 +22,48 @@ class OrderController extends Controller
             $query->where('branch_id', $request->branch_id);
         }
 
+        // Filter by status
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate(20);
+        // Search filter (by order ID, customer name, or phone)
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                  ->orWhere('code', 'like', "%{$search}%")
+                  ->orWhere('customer_name', 'like', "%{$search}%")
+                  ->orWhere('customer_phone', 'like', "%{$search}%");
+            });
+        }
+
+        // Date filter
+        if ($request->has('date_filter') && $request->date_filter !== 'all') {
+            $dateFilter = $request->date_filter;
+            $now = now();
+
+            switch ($dateFilter) {
+                case 'today':
+                    // Today's orders
+                    $query->whereDate('created_at', $now->toDateString());
+                    break;
+                case 'week':
+                    // Last 7 days
+                    $query->where('created_at', '>=', $now->subDays(7));
+                    break;
+                case 'month':
+                    // Last 30 days
+                    $query->where('created_at', '>=', $now->subDays(30));
+                    break;
+            }
+        }
+
+        // Pagination
+        $perPage = $request->input('per_page', 10);
+        $perPage = min(max((int)$perPage, 1), 100); // Limit between 1 and 100
+
+        return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
 
     public function store(Request $request)
