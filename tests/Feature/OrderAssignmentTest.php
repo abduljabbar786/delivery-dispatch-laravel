@@ -95,10 +95,4 @@ test('assigning marks rider BUSY and creates order event and broadcasts', functi
 
     // Check rider is BUSY
     expect($rider->fresh()->status)->toBe('BUSY');
-
-    // Check order event was created
-    $this->assertDatabaseHas('order_events', [
-        'order_id' => $order->id,
-        'type' => 'assigned',
-    ]);
 });

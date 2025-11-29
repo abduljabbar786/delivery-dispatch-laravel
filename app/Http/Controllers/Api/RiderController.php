@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\OrderStatusChanged;
-use App\Events\RiderLocationUpdated;
-use App\Helpers\GeolocationHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Order;
+use App\Http\Requests\Rider\IngestLocationRequest;
 use App\Models\Rider;
-use App\Models\RiderLocation;
+use App\Services\RiderService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Throwable;
 
 class RiderController extends Controller
 {
+    public function __construct(
+        protected RiderService $riderService
+    ) {
+    }
+
     public function index(Request $request)
     {
         $query = Rider::query()->with('branch');
@@ -111,143 +111,17 @@ class RiderController extends Controller
         return response()->json($order);
     }
 
-    /**
-     * @throws Throwable
-     */
-    public function ingestLocations(Request $request)
+    public function ingestLocations(IngestLocationRequest $request)
     {
-        $validated = $request->validate([
-            'points' => 'required|array|max:50',
-            'points.*.lat' => 'required|numeric|between:-90,90',
-            'points.*.lng' => 'required|numeric|between:-180,180',
-            'points.*.ts' => 'nullable|date',
-            'points.*.accuracy' => 'nullable|numeric',
-            'points.*.speed' => 'nullable|numeric',
-            'points.*.battery' => 'nullable|integer|between:0,100',
-        ]);
-
         $user = $request->user();
-
         $rider = $user->rider;
 
         if (!$rider) {
             return response()->json(['message' => 'Rider not found'], 404);
         }
 
-        $currentOrder = $rider->currentOrder;
+        $result = $this->riderService->ingestLocations($rider, $request->points);
 
-        DB::beginTransaction();
-
-        try {
-            $locations = [];
-            $latestPoint = end($validated['points']);
-
-            foreach ($validated['points'] as $point) {
-                $locationData = [
-                    'rider_id' => $rider->id,
-                    'order_id' => $currentOrder?->id,
-                    'lat' => $point['lat'],
-                    'lng' => $point['lng'],
-                    'speed' => $point['speed'] ?? null,
-                    'accuracy' => $point['accuracy'] ?? null,
-                    'battery' => $point['battery'] ?? null,
-                    'recorded_at' => $point['ts'] ?? now(),
-                ];
-
-                // Add spatial point
-                $locationData['pos'] = DB::raw("ST_GeomFromText('POINT({$point['lng']} {$point['lat']})', 4326)");
-
-                $locations[] = $locationData;
-            }
-
-            // TODO: Bulk insert locations
-            foreach ($locations as $location) {
-                RiderLocation::query()->create($location);
-            }
-
-            // Update rider's latest position and battery
-            $updateData = [
-                'latest_lat' => $latestPoint['lat'],
-                'latest_lng' => $latestPoint['lng'],
-                'last_seen_at' => now(),
-                'latest_pos' => DB::raw("ST_GeomFromText('POINT({$latestPoint['lng']} {$latestPoint['lat']})', 4326)"),
-            ];
-
-            if (isset($latestPoint['battery'])) {
-                $updateData['battery'] = $latestPoint['battery'];
-            }
-
-            $rider->update($updateData);
-
-            // Auto-update order status from PICKED_UP to OUT_FOR_DELIVERY
-            // when rider moves away from the pickup location
-            if ($currentOrder && $currentOrder->status === 'PICKED_UP') {
-                $this->checkAndUpdateOrderStatus($currentOrder, $latestPoint);
-            }
-
-            DB::commit();
-
-            // Clear rider positions cache to reflect latest updates
-            Cache::forget('riders:positions:latest');
-
-            // Throttle broadcasts - only broadcast once per second per rider
-            $cacheKey = "rider_location_broadcast_{$rider->id}";
-            $canBroadcast = ! Cache::has($cacheKey);
-
-            if ($canBroadcast) {
-                Cache::put($cacheKey, true, 1); // 1 second
-
-                broadcast(new RiderLocationUpdated(
-                    $rider->id,
-                    $latestPoint['lat'],
-                    $latestPoint['lng'],
-                    $latestPoint['battery'] ?? $rider->battery,
-                    now()
-                ))->toOthers();
-            }
-
-            return response()->json([
-                'message' => 'Locations ingested successfully',
-                'count' => count($validated['points']),
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Check if rider has moved away from pickup location and auto-update order status
-     *
-     * @param Order $order
-     * @param array $latestPoint
-     * @return void
-     */
-    private function checkAndUpdateOrderStatus(Order $order, array $latestPoint): void
-    {
-        // Check if 30 seconds have passed since PICKED_UP
-        if (!$order->picked_up_at || now()->diffInSeconds($order->picked_up_at) < 30) {
-            return;
-        }
-
-        // Get pickup location from environment
-        $pickupLat = (float) env('PICKUP_LOCATION_LAT');
-        $pickupLng = (float) env('PICKUP_LOCATION_LNG');
-
-        // Calculate distance from pickup location
-        $distance = GeolocationHelper::calculateDistance(
-            $pickupLat,
-            $pickupLng,
-            $latestPoint['lat'],
-            $latestPoint['lng']
-        );
-
-        // If rider is more than 100 meters away, update the status to OUT_FOR_DELIVERY
-        if ($distance > 100) {
-            $order->update(['status' => 'OUT_FOR_DELIVERY']);
-
-            // Broadcast event
-            broadcast(new OrderStatusChanged($order->fresh()))->toOthers();
-        }
+        return response()->json($result);
     }
 }
