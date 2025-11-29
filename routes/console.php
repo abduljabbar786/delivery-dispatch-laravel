@@ -10,24 +10,17 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Cleanup rider locations daily at restaurant closing time
-Schedule::call(function () {
-    $deletedCount = RiderLocation::whereDate('created_at', '<', today())->delete();
+// Cleanup rider locations daily at 4:30 AM
+// Keeps only 1 day of location history (deletes older records)
+Schedule::command('rider-locations:cleanup --days=1')
+    ->dailyAt('04:30')
+    ->name('cleanup-rider-locations')
+    ->onOneServer();
 
-    info("Daily rider locations cleanup completed. Deleted {$deletedCount} records.");
-})->dailyAt('04:30') // Run at 4:30 AM (30 mins after typical closing time)
-  ->name('cleanup-rider-locations')
-  ->onOneServer();
-
-// Optional: Archive old orders (keep last 90 days)
-// Uncomment if you want to enable this
-// Schedule::call(function () {
-//     $cutoffDate = now()->subDays(90);
-//     $deletedOrders = \App\Models\Order::where('created_at', '<', $cutoffDate)
-//         ->whereIn('status', ['DELIVERED', 'FAILED'])
-//         ->delete();
-//
-//     info("Archived {$deletedOrders} old orders.");
-// })->weekly()->mondays()->at('05:00')
-//   ->name('archive-old-orders')
-//   ->onOneServer();
+// Cleanup old completed and delivered orders monthly
+// Runs on the 1st of each month at 5:00 AM
+// Keeps 1 month of order history (deletes older DELIVERED and FAILED orders)
+Schedule::command('orders:cleanup --months=1')
+    ->monthlyOn(1, '05:00')
+    ->name('cleanup-old-orders')
+    ->onOneServer();
