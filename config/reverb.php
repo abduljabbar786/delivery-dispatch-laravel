@@ -82,7 +82,20 @@ return [
                     'scheme' => env('REVERB_SCHEME', 'https'),
                     'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
                 ],
-                'allowed_origins' => ['https://delivery-dispatch-react.vercel.app'],
+                'allowed_origins' => [
+                    'https://delivery-dispatch-react.vercel.app',
+                    'http://127.0.0.1:5173',
+                    'http://127.0.0.1:5174',
+                    'http://localhost:45425',
+                    'http://127.0.0.1:45425',
+                    'http://localhost:5173',
+                    'http://localhost:5174',
+                    // Flutter web app origins
+                    'http://localhost:41587',
+                    'http://127.0.0.1:41587',
+                    // Allow all localhost origins for development
+                    '*'
+                ],
                 'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
                 'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
                 'max_connections' => env('REVERB_APP_MAX_CONNECTIONS'),

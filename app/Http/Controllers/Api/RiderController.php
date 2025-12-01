@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Rider\IngestLocationRequest;
+use App\Models\Order;
 use App\Models\Rider;
 use App\Services\RiderService;
 use Illuminate\Http\Request;
@@ -89,6 +90,9 @@ class RiderController extends Controller
             return response()->json(['message' => 'Rider not found'], 404);
         }
 
+        // Load branch relationship
+        $rider->load('branch');
+
         return response()->json(['data' => $rider]);
     }
 
@@ -102,7 +106,12 @@ class RiderController extends Controller
             return response()->json(['message' => 'Rider not found'], 404);
         }
 
-        $order = $rider->currentOrder;
+        // Fetch current order directly with a query
+        $order = Order::where('assigned_rider_id', $rider->id)
+            ->whereIn('status', ['ASSIGNED', 'PICKED_UP', 'OUT_FOR_DELIVERY'])
+            ->with(['branch'])
+            ->latest('updated_at')
+            ->first();
 
         if (!$order) {
             return response()->noContent();
